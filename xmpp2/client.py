@@ -1,6 +1,9 @@
 import logging
+from lxml import etree
 from stream import XMLStream
 import transport
+import auth
+from constants import NAMESPACES
 
 
 class Client(object):
@@ -13,9 +16,11 @@ class Client(object):
         self.stream = None
         self.sock = None
         self.gen = None
+        self.features = None
+        self.me = None
 
     def initiate(self, sock):
-        sock.write('''<?xml version='1.0'?>
+        sock.write('''<?xml version='1.0'? encoding='UTF-8'>
         <stream:stream xmlns:stream="http://etherx.jabber.org/streams"
             to="%s"
             version="1.0"
@@ -40,12 +45,11 @@ class Client(object):
             element = gen.next()
             logging.debug(str((element.tag, element.attrib)))
             if element.tag.endswith('features'):
+                self.features = element
                 break
             elif element.tag.endswith('starttls'):
                 starttls = element
-        logging.info(element.getchildren())
-        logging.info(starttls)
-        logging.info(element.xpath('./starttls'))
+        logging.info(etree.tostring(element))
 
         if starttls is not None:
             # Send starttls request
@@ -57,7 +61,10 @@ class Client(object):
                 sock = transport.TCP_SSL(sock.sock)
                 # Re-initiate the stream.
                 self.initiate(sock)
+                self.features.clear()
+                self.features = None
                 stream = XMLStream(sock)
+                gen = stream.generator()
             else:
                 logging.warn('Not proceeding with TLS')
 
@@ -73,11 +80,31 @@ class Client(object):
         self.stream = XMLStream(sock)
         self.gen = self.stream.generator()
 
+    def auth(self, username, password=None, resource=None):
+        if self.features is None:
+            while True:
+                element = self.gen.next()
+                if element.tag.endswith('features'):
+                    self.features = element
+                    break
+        logging.info(self.features)
+        mechanisms = self.features.xpath('sasl:mechanisms/sasl:mechanism',
+                                         namespaces=NAMESPACES)
+        logging.info(mechanisms)
+        nsasl = auth.NON_SASL([m.text for m in mechanisms], self, username,
+                              password, resource)
+        self.me = nsasl.me()
+
     def read(self):
         return self.sock.read()
 
     def write(self, s):
-        self.sock.write(s)
+        if type(s) == str:
+            self.sock.write(unicode(s))
+        else:
+            x = etree.tostring(s, encoding=unicode)
+            logging.debug(x)
+            self.sock.write(x)
 
     def disconnect(self):
         self.stream.close()

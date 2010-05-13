@@ -6,8 +6,10 @@ from xmpp2 import client
 
 logging.basicConfig(level=logging.DEBUG)
 
-c = client.Client('jabber.org')
+c = client.Client('dds-master.ccs.neu.edu')
 c.connect()
+c.auth('lee-server', resource='test', password='lee-server')
 
 for n in c.stream.generator():
-    print (n, n.tag, n.attrib)
+    pass
+    # print (n, n.tag, n.attrib, [x for x in n.iter()])

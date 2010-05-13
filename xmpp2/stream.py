@@ -12,6 +12,7 @@ class XMLStream(object):
         # file like IO
         self.sock = sock
         self.parser = etree.XMLParser()
+        self.id = None
 
     def read(self, *args, **kwargs):
         return self.sock.read()
@@ -22,8 +23,11 @@ class XMLStream(object):
     def generator(self):
         for event, element in etree.iterparse(self, events=('start', 'end')):
             logging.debug(str((event, element.tag, element.attrib)))
+            if element.tag.endswith('stream'):
+                self.id = element.attrib['id']
             if event == 'end':
                 yield element
+#                element.clear()
 
     def close(self):
         self.sock.close()
