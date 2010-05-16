@@ -1,3 +1,4 @@
+import copy
 import logging
 from lxml import etree
 
@@ -26,8 +27,9 @@ class XMLStream(object):
             if element.tag.endswith('stream'):
                 self.id = element.attrib['id']
             if event == 'end':
-                yield element
-#                element.clear()
+                c = copy.deepcopy(element)
+                element.clear()
+                yield c
 
     def close(self):
         self.sock.close()

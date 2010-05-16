@@ -91,9 +91,12 @@ class Client(object):
         mechanisms = self.features.xpath('sasl:mechanisms/sasl:mechanism',
                                          namespaces=NAMESPACES)
         logging.info(mechanisms)
-        nsasl = auth.NON_SASL([m.text for m in mechanisms], self, username,
-                              password, resource)
-        self.me = nsasl.me()
+#        nsasl = auth.NON_SASL([m.text for m in mechanisms], self, username,
+#                              password, resource)
+#        self.me = nsasl.me()
+        sasl = auth.SASL([m.text for m in mechanisms], self, username,
+                         password, resource)
+        self.me = sasl.me()
 
     def read(self):
         return self.sock.read()
