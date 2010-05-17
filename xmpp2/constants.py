@@ -28,6 +28,7 @@ NS_SERVER = 'jabber:server'
 NS_SIGNED = 'jabber:x:signed'
 NS_STREAM = 'http://etherx.jabber.org/streams'
 NS_TIME = 'jabber:iq:time'
+NS_TLS = 'urn:ietf:params:xml:ns:xmpp-tls'
 NS_VCARD = 'vcard-temp'
 NS_VERSION = 'jabber:iq:version'
 NS_XDBGINSERT = 'jabber:xdb:ginsert'
@@ -64,6 +65,7 @@ NAMESPACES = {
     'signed': NS_SIGNED,
     'stream': NS_STREAM,
     'time': NS_TIME,
+    'tls': NS_TLS,
     'vcard': NS_VCARD,
     'version': NS_VERSION,
     'xdbginsert': NS_XDBGINSERT,

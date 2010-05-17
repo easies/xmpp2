@@ -4,7 +4,7 @@ from stream import XMLStream
 import transport
 import auth
 from bind import Bind
-from constants import NAMESPACES
+from constants import NAMESPACES, NS_TLS
 
 
 class Client(object):
@@ -34,42 +34,38 @@ class Client(object):
             self._connect_plain()
 
     def _connect_plain(self):
-        sock = transport.TCP(self.host, self.port)
-        sock.connect()
-        self.initiate(sock)
-        stream = XMLStream(sock)
-        gen = stream.generator()
+        self.sock = transport.TCP(self.host, self.port)
+        self.sock.connect()
+        self.initiate(self.sock)
+        self.stream = XMLStream(self.sock)
+        self.gen = self.stream.generator()
 
         # should be stream:features
-        starttls = None 
-        while True:
-            element = gen.next()
-            if element.tag.endswith('features'):
-                self.features = element
-                break
-            elif element.tag.endswith('starttls'):
-                starttls = element
+        self.features = self.gen.next()
+        starttls = self.features.xpath('tls:starttls', namespaces=NAMESPACES)
 
-        if starttls is not None:
-            # Send starttls request
-            logging.info('Sending starttls request')
-            sock.write('<starttls xmlns="%s" />' % starttls.nsmap[None])
-            element = gen.next()
-            if element.tag.endswith('proceed'):
-                logging.info('Proceeding with TLS')
-                sock = transport.TCP_SSL(sock.sock)
-                # Re-initiate the stream.
-                self.initiate(sock)
-                self.features.clear()
-                self.features = None
-                stream = XMLStream(sock)
-                gen = stream.generator()
-            else:
-                logging.warn('Not proceeding with TLS')
+        if len(starttls) > 0:
+            starttls = starttls[0]
+            logging.debug(starttls)
+            self.start_tls(starttls)
 
-        self.sock = sock
-        self.stream = stream
-        self.gen = gen
+    def start_tls(self, starttls):
+        # Send starttls request
+        logging.info('Sending starttls request')
+        self.write(starttls)
+        element = self.gen.next()
+        if element.tag.endswith('proceed'):
+            logging.info('Proceeding with TLS')
+            # Upgrade to TLS
+            sock = transport.TCP_SSL(self.sock.sock)
+            # Re-initiate the stream.
+            self.initiate(sock)
+            self.stream = XMLStream(sock)
+            self.gen = self.stream.generator()
+            self.sock = sock
+            self.features = self.gen.next()
+        else:
+            logging.warn('Not proceeding with TLS')
 
     def _connect_secure(self):
         sock = transport.TCP(self.host, self.port)
@@ -78,6 +74,7 @@ class Client(object):
         self.initiate(sock)
         self.stream = XMLStream(sock)
         self.gen = self.stream.generator()
+        self.features = self.gen.next()
 
     def auth(self, username, password=None, resource=None):
         if self.features is None:

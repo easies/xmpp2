@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 c = client.Client('dds-master.ccs.neu.edu')
 c.connect()
-c.auth('lee-server', resource='test', password='lee-server')
+c.auth('lee-server', password='lee-server')
 
 for n in c.stream.generator():
     pass
