@@ -50,7 +50,7 @@ class NON_SASL(object):
     def get_digest(self):
         """The digest is sha1 hash of the stream's id + the password"""
         h = sha1()
-        h.update(self.client.stream.id + self.password)
+        h.update(self.client.stream.get_id() + self.password)
         return h.hexdigest()
 
     def me(self):
