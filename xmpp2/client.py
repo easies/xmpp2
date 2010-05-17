@@ -3,6 +3,7 @@ from lxml import etree
 from stream import XMLStream
 import transport
 import auth
+from bind import Bind
 from constants import NAMESPACES
 
 
@@ -43,13 +44,11 @@ class Client(object):
         starttls = None 
         while True:
             element = gen.next()
-            logging.debug(str((element.tag, element.attrib)))
             if element.tag.endswith('features'):
                 self.features = element
                 break
             elif element.tag.endswith('starttls'):
                 starttls = element
-        logging.info(etree.tostring(element))
 
         if starttls is not None:
             # Send starttls request
@@ -87,16 +86,29 @@ class Client(object):
                 if element.tag.endswith('features'):
                     self.features = element
                     break
-        logging.info(self.features)
         mechanisms = self.features.xpath('sasl:mechanisms/sasl:mechanism',
                                          namespaces=NAMESPACES)
-        logging.info(mechanisms)
-#        nsasl = auth.NON_SASL([m.text for m in mechanisms], self, username,
-#                              password, resource)
-#        self.me = nsasl.me()
-        sasl = auth.SASL([m.text for m in mechanisms], self, username,
-                         password, resource)
-        self.me = sasl.me()
+        if len(mechanisms) > 0:
+            mechanisms = [m.text for m in mechanisms]
+            logging.info(mechanisms)
+            sasl = auth.SASL(mechanisms, self, username, password, resource)
+            sasl.start_auth()
+            self.me = sasl.me()
+            self.initiate(self.sock)
+            self.gen = self.stream.generator()
+            self.me = JID.from_string(self.bind(resource))
+        else:
+            pass
+            nsasl = auth.NON_SASL(self, username, password, resource)
+            self.me = nsasl.me()
+
+    def bind(self, resource):
+        features = self.gen.next()
+        bind = features.xpath('bind:bind', namespaces=NAMESPACES)
+        if len(bind) > 0:
+            bind = bind[0]
+            b = Bind(self)
+            return b.bind(resource=resource)
 
     def read(self):
         return self.sock.read()
@@ -119,6 +131,24 @@ class JID(object):
         self.node = node
         self.domain = domain
         self.resource = resource
+
+    @classmethod
+    def from_string(cls, jid):
+        """
+        >>> x = 'node@domain/resource'
+        >>> jid = JID.from_string(x)
+        >>> str(jid) == x
+        True
+        >>> jid.node
+        'node'
+        >>> jid.domain
+        'domain'
+        >>> jid.resource
+        'resource'
+        """
+        node, other = jid.split('@', 2)
+        domain, resource = other.split('/', 2)
+        return JID(node, domain, resource)
 
     def __str__(self):
         """

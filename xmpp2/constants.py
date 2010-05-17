@@ -5,6 +5,7 @@ NS_AGENT = 'jabber:iq:agent'
 NS_AGENTS = 'jabber:iq:agents'
 NS_AUTH = 'jabber:iq:auth'
 NS_AUTH_0K = 'jabber:iq:auth:0k'
+NS_BIND = 'urn:ietf:params:xml:ns:xmpp-bind'
 NS_BROWSE = 'jabber:iq:browse'
 NS_CLIENT = 'jabber:client'
 NS_CONFERENCE = 'jabber:iq:conference'
@@ -25,6 +26,7 @@ NS_SASL = 'urn:ietf:params:xml:ns:xmpp-sasl'
 NS_SEARCH = 'jabber:iq:search'
 NS_SERVER = 'jabber:server'
 NS_SIGNED = 'jabber:x:signed'
+NS_STREAM = 'http://etherx.jabber.org/streams'
 NS_TIME = 'jabber:iq:time'
 NS_VCARD = 'vcard-temp'
 NS_VERSION = 'jabber:iq:version'
@@ -39,6 +41,7 @@ NAMESPACES = {
     'agents': NS_AGENTS,
     'auth': NS_AUTH,
     'auth_0k': NS_AUTH_0K,
+    'bind': NS_BIND,
     'browse': NS_BROWSE,
     'client': NS_CLIENT,
     'conference': NS_CONFERENCE,
@@ -59,6 +62,7 @@ NAMESPACES = {
     'search': NS_SEARCH,
     'server': NS_SERVER,
     'signed': NS_SIGNED,
+    'stream': NS_STREAM,
     'time': NS_TIME,
     'vcard': NS_VCARD,
     'version': NS_VERSION,

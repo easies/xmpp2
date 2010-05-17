@@ -45,7 +45,7 @@ class RFC2831(object):
             if value.startswith('"') and value.endswith('"'):
                 value = value[1:-1]
             pairs[key] = value
-        logging.debug(pairs)
+        # logging.debug(pairs)
         return DigestChallenge(**pairs)
 
 
@@ -89,7 +89,7 @@ class DigestChallenge(object):
             A2 = 'AUTHENTICATE:%s' % digest_uri
         elif self.qop in ('auth-int', 'auth-conf'):
             A2 = 'AUTHENTICATE:%s:%s' % (digest_uri, '0' * 32)
-        logging.debug('A2: %s', A2)
+        logging.debug('digest-uri=%s', digest_uri)
         response = HEX(HEX(A1), self.nonce, '%08x' % nc, cnonce, self.qop,
                        HEX(A2))
         logging.debug(response)
