@@ -1,9 +1,8 @@
 import logging
 from lxml import etree
-from interface import Handler, ExitType 
 
 
-class TLSHandler(Handler):
+class TLSHandler(object):
 
     def __init__(self, client):
         self.client = client
@@ -26,7 +25,7 @@ class TLSHandler(Handler):
     def write(self, x):
         self.client.write(x)
 
-    class PlugOut(ExitType):
+    class PlugOut(object):
 
         def act(self, client, handler):
             client.remove_handler(handler)

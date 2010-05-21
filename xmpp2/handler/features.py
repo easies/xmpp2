@@ -1,7 +1,6 @@
-from interface import Handler, PlugOut
 
 
-class FeaturesHandler(Handler):
+class FeaturesHandler(object):
 
     def __init__(self, client):
         self.client = client
@@ -11,7 +10,12 @@ class FeaturesHandler(Handler):
             self.client.features = Features(xml_obj)
         else:
             self.client.features.append(Features(xml_obj))
-        return PlugOut()
+        return self.PlugOut()
+
+    class PlugOut(object):
+
+        def act(self, client, handler):
+            client.remove_handler(handler)
 
 
 class Features(object):

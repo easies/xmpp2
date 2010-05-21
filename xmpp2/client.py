@@ -3,11 +3,11 @@ from lxml import etree
 from stream import XMLStream
 import transport
 import auth
-from bind import Bind
 from constants import NAMESPACES, NS_TLS
 from handler.interface import ExitType
 from handler.features import FeaturesHandler
 from handler.tls import TLSHandler
+from handler.bind import BindHandler
 
 
 class Client(object):
@@ -23,6 +23,7 @@ class Client(object):
         self.features = None
         self.me = None
         self.handlers = []
+        self.jid = None
 
     def add_handler(self, handler):
         self.handlers.append(handler)
@@ -31,6 +32,10 @@ class Client(object):
 
     def remove_handler(self, handler):
         self.handlers.remove(handler)
+
+    def _set_jid(self, jid):
+        if jid is not None:
+            self.jid = JID.from_string(jid)
 
     def initiate(self, sock):
         sock.write('''<?xml version="1.0" encoding="UTF-8">
@@ -52,6 +57,7 @@ class Client(object):
         self.stream = XMLStream(self.sock)
         self.gen = self.stream.generator()
 
+        # process features
         self.add_handler(FeaturesHandler(self))
         self.process()
 
@@ -65,7 +71,7 @@ class Client(object):
         self.upgrade_to_tls()
 
     def upgrade_to_tls(self):
-        # Upgrade to TLS
+        """Upgrade the connection to TLS"""
         sock = transport.TCP_SSL(self.sock.sock)
         # Re-initiate the stream.
         self.initiate(sock)
@@ -75,14 +81,8 @@ class Client(object):
         self.add_handler(FeaturesHandler(self))
 
     def auth(self, username, password=None, resource=None):
-        if self.features is None:
-            while True:
-                element = self.gen.next()
-                if element.tag.endswith('features'):
-                    self.features = element
-                    break
         mechanisms = self.features.get_feature('mechanisms')
-        if len(mechanisms) > 0:
+        if mechanisms is not None:
             mechanisms = [m.text for m in mechanisms]
             logging.info(mechanisms)
             sasl = auth.SASL(mechanisms, self, username, password, resource)
@@ -90,19 +90,19 @@ class Client(object):
             self.me = sasl.me()
             self.initiate(self.sock)
             self.gen = self.stream.generator()
-            self.me = JID.from_string(self.bind(resource))
+            # process features
+            self.add_handler(FeaturesHandler(self))
+            self.process()
+            # bind the resource
+            self.bind(resource)
         else:
-            pass
             nsasl = auth.NON_SASL(self, username, password, resource)
             self.me = nsasl.me()
 
-    def bind(self, resource):
-        features = self.gen.next()
-        bind = features.xpath('bind:bind', namespaces=NAMESPACES)
-        if len(bind) > 0:
-            bind = bind[0]
-            b = Bind(self)
-            return b.bind(resource=resource)
+    def bind(self, resource=None):
+        """Bind to the resource. The resulting resource may be different."""
+        self.add_handler(BindHandler(self, resource))
+        self.process()
 
     def read(self):
         return self.sock.read()
@@ -121,7 +121,7 @@ class Client(object):
             ret = handler.handle(element)
             if ret is None:
                 continue
-            elif isinstance(ret, ExitType):
+            elif hasattr(ret, 'act'):
                 ret.act(self, handler)
 
     def disconnect(self):
