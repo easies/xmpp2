@@ -31,7 +31,10 @@ class Client(object):
             handler.start()
 
     def remove_handler(self, handler):
-        self.handlers.remove(handler)
+        try:
+            self.handlers.remove(handler)
+        except ValueError:
+            pass
 
     def _set_jid(self, jid):
         if jid is not None:
@@ -79,6 +82,7 @@ class Client(object):
         self.gen = self.stream.generator()
         self.sock = sock
         self.add_handler(FeaturesHandler(self))
+        self.process()
 
     def auth(self, username, password=None, resource=None):
         mechanisms = self.features.get_feature('mechanisms')

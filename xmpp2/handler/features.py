@@ -1,3 +1,4 @@
+from common import PlugOut
 
 
 class FeaturesHandler(object):
@@ -10,12 +11,7 @@ class FeaturesHandler(object):
             self.client.features = Features(xml_obj)
         else:
             self.client.features.append(Features(xml_obj))
-        return self.PlugOut()
-
-    class PlugOut(object):
-
-        def act(self, client, handler):
-            client.remove_handler(handler)
+        return PlugOut()
 
 
 class Features(object):

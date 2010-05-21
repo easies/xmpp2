@@ -1,11 +1,13 @@
 import logging
 from lxml import etree
+from common import PlugOut
 
 
 class TLSHandler(object):
 
     def __init__(self, client):
         self.client = client
+        self.handled = False
 
     def start(self):
         # Send starttls request
@@ -13,6 +15,9 @@ class TLSHandler(object):
         self.write('<starttls xmlns="urn:ietf:params:xml:ns:xmpp-tls"/>')
 
     def handle(self, element):
+        if self.handled:
+            return
+        self.handled = True
         if element.tag.endswith('proceed'):
             logging.info('Proceeding with TLS')
             # Upgrade to TLS
@@ -20,13 +25,7 @@ class TLSHandler(object):
         else:
             logging.warn('Not proceeding with TLS')
             logging.debug(etree.tostring(element))
-        return self.PlugOut()
+        return PlugOut()
 
     def write(self, x):
         self.client.write(x)
-
-    class PlugOut(object):
-
-        def act(self, client, handler):
-            client.remove_handler(handler)
-            client.process() # for the features
