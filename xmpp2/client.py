@@ -5,6 +5,9 @@ import transport
 import auth
 from bind import Bind
 from constants import NAMESPACES, NS_TLS
+from handler.interface import ExitType
+from handler.features import FeaturesHandler
+from handler.tls import TLSHandler
 
 
 class Client(object):
@@ -19,9 +22,18 @@ class Client(object):
         self.gen = None
         self.features = None
         self.me = None
+        self.handlers = []
+
+    def add_handler(self, handler):
+        self.handlers.append(handler)
+        if hasattr(handler, 'start'):
+            handler.start()
+
+    def remove_handler(self, handler):
+        self.handlers.remove(handler)
 
     def initiate(self, sock):
-        sock.write('''<?xml version='1.0'? encoding='UTF-8'>
+        sock.write('''<?xml version="1.0" encoding="UTF-8">
         <stream:stream xmlns:stream="http://etherx.jabber.org/streams"
             to="%s"
             version="1.0"
@@ -40,41 +52,27 @@ class Client(object):
         self.stream = XMLStream(self.sock)
         self.gen = self.stream.generator()
 
-        # should be stream:features
-        self.features = self.gen.next()
-        starttls = self.features.xpath('tls:starttls', namespaces=NAMESPACES)
+        self.add_handler(FeaturesHandler(self))
+        self.process()
 
-        if len(starttls) > 0:
-            starttls = starttls[0]
-            logging.debug(starttls)
-            self.start_tls(starttls)
-
-    def start_tls(self, starttls):
-        # Send starttls request
-        logging.info('Sending starttls request')
-        self.write(starttls)
-        element = self.gen.next()
-        if element.tag.endswith('proceed'):
-            logging.info('Proceeding with TLS')
-            # Upgrade to TLS
-            sock = transport.TCP_SSL(self.sock.sock)
-            # Re-initiate the stream.
-            self.initiate(sock)
-            self.stream = XMLStream(sock)
-            self.gen = self.stream.generator()
-            self.sock = sock
-            self.features = self.gen.next()
-        else:
-            logging.warn('Not proceeding with TLS')
+        if self.features.has_feature('starttls'):
+            self.add_handler(TLSHandler(self))
+            self.process()
 
     def _connect_secure(self):
-        sock = transport.TCP(self.host, self.port)
-        sock.connect()
-        self.sock = transport.TCP_SSL(sock.sock)
+        self.sock = transport.TCP(self.host, self.port)
+        self.sock.connect()
+        self.upgrade_to_tls()
+
+    def upgrade_to_tls(self):
+        # Upgrade to TLS
+        sock = transport.TCP_SSL(self.sock.sock)
+        # Re-initiate the stream.
         self.initiate(sock)
         self.stream = XMLStream(sock)
         self.gen = self.stream.generator()
-        self.features = self.gen.next()
+        self.sock = sock
+        self.add_handler(FeaturesHandler(self))
 
     def auth(self, username, password=None, resource=None):
         if self.features is None:
@@ -83,8 +81,7 @@ class Client(object):
                 if element.tag.endswith('features'):
                     self.features = element
                     break
-        mechanisms = self.features.xpath('sasl:mechanisms/sasl:mechanism',
-                                         namespaces=NAMESPACES)
+        mechanisms = self.features.get_feature('mechanisms')
         if len(mechanisms) > 0:
             mechanisms = [m.text for m in mechanisms]
             logging.info(mechanisms)
@@ -117,6 +114,15 @@ class Client(object):
             x = etree.tostring(s, encoding=unicode)
             logging.debug(x)
             self.sock.write(x)
+
+    def process(self):
+        element = self.gen.next()
+        for handler in self.handlers:
+            ret = handler.handle(element)
+            if ret is None:
+                continue
+            elif isinstance(ret, ExitType):
+                ret.act(self, handler)
 
     def disconnect(self):
         self.stream.close()
