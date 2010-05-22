@@ -8,6 +8,7 @@ from handler.interface import ExitType
 from handler.features import FeaturesHandler
 from handler.tls import TLSHandler
 from handler.bind import BindHandler
+from handler.auth import SASLHandler, NON_SASLHandler
 
 
 class Client(object):
@@ -40,7 +41,9 @@ class Client(object):
         if jid is not None:
             self.jid = JID.from_string(jid)
 
-    def initiate(self, sock):
+    def initiate(self, sock=None):
+        if sock is None:
+            sock = self.sock
         sock.write('''<?xml version="1.0" encoding="UTF-8">
         <stream:stream xmlns:stream="http://etherx.jabber.org/streams"
             to="%s"
@@ -89,19 +92,20 @@ class Client(object):
         if mechanisms is not None:
             mechanisms = [m.text for m in mechanisms]
             logging.info(mechanisms)
-            sasl = auth.SASL(mechanisms, self, username, password, resource)
-            sasl.start_auth()
-            self.me = sasl.me()
-            self.initiate(self.sock)
-            self.gen = self.stream.generator()
+
+            sasl = SASLHandler(self, mechanisms, username, password)
+            self.add_handler(sasl)
+            self.process()
             # process features
             self.add_handler(FeaturesHandler(self))
             self.process()
             # bind the resource
             self.bind(resource)
         else:
-            nsasl = auth.NON_SASL(self, username, password, resource)
-            self.me = nsasl.me()
+            nsasl = NON_SASLHandler(self, username, password, resource)
+            self.add_handler(nsasl)
+            self.process()
+            self.process()
 
     def bind(self, resource=None):
         """Bind to the resource. The resulting resource may be different."""
@@ -113,11 +117,11 @@ class Client(object):
 
     def write(self, s):
         if type(s) == str:
-            self.sock.write(unicode(s))
+            x = unicode(s)
         else:
             x = etree.tostring(s, encoding=unicode)
-            logging.debug(x)
-            self.sock.write(x)
+        logging.debug(x)
+        self.sock.write(x)
 
     def process(self):
         element = self.gen.next()
