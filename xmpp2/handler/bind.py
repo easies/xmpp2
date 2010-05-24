@@ -22,6 +22,7 @@ class BindHandler(object):
             # resource.text = str(resource)
             etree.SubElement(bind, 'resource').text = str(resource)
         self.client.write(iq)
+        self.client.process()
 
     def handle(self, iq):
         jid = iq.xpath('bind:bind/bind:jid', namespaces=self.NAMESPACES)

@@ -13,6 +13,7 @@ class TLSHandler(object):
         # Send starttls request
         logging.info('Sending starttls request')
         self.write('<starttls xmlns="urn:ietf:params:xml:ns:xmpp-tls"/>')
+        self.client.process()
 
     def handle(self, element):
         if self.handled:
@@ -24,7 +25,7 @@ class TLSHandler(object):
             self.client.upgrade_to_tls()
         else:
             logging.warn('Not proceeding with TLS')
-            logging.debug(etree.tostring(element))
+            logging.warn(etree.tostring(element))
         return PlugOut()
 
     def write(self, x):

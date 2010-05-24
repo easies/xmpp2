@@ -4,7 +4,6 @@ from stream import XMLStream
 import transport
 import auth
 from constants import NAMESPACES, NS_TLS
-from handler.interface import ExitType
 from handler.features import FeaturesHandler
 from handler.tls import TLSHandler
 from handler.bind import BindHandler
@@ -14,7 +13,7 @@ from handler.auth import SASLHandler, NON_SASLHandler
 class Client(object):
     """An XMPP client"""
 
-    def __init__(self, host, port=5222, sasl=True, ssl=False):
+    def __init__(self, host, port=5222, ssl=False):
         self.host = host
         self.port = port
         self.ssl = ssl
@@ -41,14 +40,8 @@ class Client(object):
         if jid is not None:
             self.jid = JID.from_string(jid)
 
-    def initiate(self, sock=None):
-        if sock is None:
-            sock = self.sock
-        sock.write('''<?xml version="1.0" encoding="UTF-8">
-        <stream:stream xmlns:stream="http://etherx.jabber.org/streams"
-            to="%s"
-            version="1.0"
-            xmlns="jabber:client">''' % self.host)
+    def initiate(self):
+        self.stream.initiate(self.host)
 
     def connect(self):
         if self.ssl:
@@ -59,17 +52,13 @@ class Client(object):
     def _connect_plain(self):
         self.sock = transport.TCP(self.host, self.port)
         self.sock.connect()
-        self.initiate(self.sock)
         self.stream = XMLStream(self.sock)
+        self.initiate()
         self.gen = self.stream.generator()
-
         # process features
         self.add_handler(FeaturesHandler(self))
-        self.process()
-
         if self.features.has_feature('starttls'):
             self.add_handler(TLSHandler(self))
-            self.process()
 
     def _connect_secure(self):
         self.sock = transport.TCP(self.host, self.port)
@@ -80,48 +69,30 @@ class Client(object):
         """Upgrade the connection to TLS"""
         sock = transport.TCP_SSL(self.sock.sock)
         # Re-initiate the stream.
-        self.initiate(sock)
         self.stream = XMLStream(sock)
+        self.initiate()
         self.gen = self.stream.generator()
         self.sock = sock
         self.add_handler(FeaturesHandler(self))
-        self.process()
 
     def auth(self, username, password=None, resource=None):
         mechanisms = self.features.get_feature('mechanisms')
         if mechanisms is not None:
             mechanisms = [m.text for m in mechanisms]
-            logging.info(mechanisms)
-
+            logging.info('mechanisms: %s', mechanisms)
             sasl = SASLHandler(self, mechanisms, username, password)
             self.add_handler(sasl)
-            self.process()
-            # process features
             self.add_handler(FeaturesHandler(self))
-            self.process()
-            # bind the resource
-            self.bind(resource)
+            self.add_handler(BindHandler(self, resource))
         else:
             nsasl = NON_SASLHandler(self, username, password, resource)
             self.add_handler(nsasl)
-            self.process()
-            self.process()
 
-    def bind(self, resource=None):
-        """Bind to the resource. The resulting resource may be different."""
-        self.add_handler(BindHandler(self, resource))
-        self.process()
-
-    def read(self):
-        return self.sock.read()
+    def get_id(self):
+        return self.stream['id']
 
     def write(self, s):
-        if type(s) == str:
-            x = unicode(s)
-        else:
-            x = etree.tostring(s, encoding=unicode)
-        logging.debug(x)
-        self.sock.write(x)
+        return self.stream.write(s)
 
     def process(self):
         element = self.gen.next()

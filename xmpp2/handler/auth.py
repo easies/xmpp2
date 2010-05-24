@@ -28,18 +28,20 @@ class NON_SASLHandler(object):
         username = etree.SubElement(query, 'username')
         username.text = self.username
         self.write(iq)
+        self.client.process()
 
     def handle(self, iq):
         if self.state == 0:
             methods = iq.xpath('auth:query/*', namespaces=NAMESPACES)
             prefix = '{%s}' % NS_AUTH
             self.set_attributes([m.tag.replace(prefix, '') for m in methods])
+            self.state = 1
+            self.client.process()
         elif self.state == 1:
             iq = self.next()
             # TODO error case
             self.to = iq.xpath('@to')[0]
             return PlugOut()
-        self.state += 1
 
     def set_attributes(self, attribs):
         """Auth with digest"""
@@ -64,7 +66,7 @@ class NON_SASLHandler(object):
     def get_digest(self):
         """The digest is sha1 hash of the stream's id + the password"""
         h = sha1()
-        h.update(self.client.stream.get_id() + self.password)
+        h.update(self.client.get_id() + self.password)
         return h.hexdigest()
 
     def me(self):
@@ -79,17 +81,19 @@ class NON_SASLHandler(object):
 
 class SASLHandler(object):
 
-    def __init__(self, client, mechanisms, username, password):
+    def __init__(self, client, mechanisms, username, password, log=False):
         self.client = client
         self.mechanisms = mechanisms
         self.username = username
         self.password = password
+        self.log = log
         self.state = 0
         self.is_done = False
 
     def start(self):
         auth = etree.Element('auth', xmlns=NS_SASL, mechanism='DIGEST-MD5')
         self.write(auth)
+        self.client.process()
 
     def handle(self, xml_obj):
         if self.state == 0:
@@ -99,6 +103,8 @@ class SASLHandler(object):
             res = etree.Element('response', xmlns=NS_SASL)
             res.text = base64.b64encode(str(response))
             self.write(res)
+            self.state = 1
+            self.client.process()
         elif self.state == 1:
             if xml_obj.tag.endswith('success'):
                 rspauth = base64.b64decode(xml_obj.text)
@@ -109,13 +115,14 @@ class SASLHandler(object):
                 rspauth = base64.b64decode(xml_obj.text)
                 self.rspauth = rspauth.lstrip('rspauth=')
                 self.write(etree.Element('response', xmlns=NS_SASL))
+                self.state = 2
+                self.client.process()
             else: pass
         elif self.state == 2:
             self.is_done = True
             return self.PlugOut()
         else:
             return # exit
-        self.state += 1
 
     def write(self, s):
         self.client.write(s)
@@ -171,7 +178,6 @@ class RFC2831(object):
             if value.startswith('"') and value.endswith('"'):
                 value = value[1:-1]
             pairs[key] = value
-        # logging.debug(pairs)
         return DigestChallenge(**pairs)
 
 
@@ -179,7 +185,7 @@ class DigestChallenge(object):
 
     def __init__(self, realm=None, nonce=None, qop=None, stale=False,
                  maxbuf=65536, charset='iso-8859-1', algorithm=None,
-                 cipher=None):
+                 cipher=None, should_log=False):
         self.realm = realm
         self.nonce = nonce
         self.qop = qop
@@ -188,6 +194,7 @@ class DigestChallenge(object):
         self.charset = charset
         self.algorithm = algorithm
         self.cipher = cipher
+        self.should_log = should_log
 
     def get_response(self, username, password, nc=1, service_type='xmpp',
                      service_name=None):
@@ -210,17 +217,21 @@ class DigestChallenge(object):
 
         A1 = (H(username, self.realm, password) + ':' + self.nonce + ':' +
               cnonce)
-        logging.debug('username=%s realm=%s', username, self.realm)
+        self.log('username=%s realm=%s', username, self.realm)
         if self.qop == 'auth':
             A2 = 'AUTHENTICATE:%s' % digest_uri
         elif self.qop in ('auth-int', 'auth-conf'):
             A2 = 'AUTHENTICATE:%s:%s' % (digest_uri, '0' * 32)
-        logging.debug('digest-uri=%s', digest_uri)
+        self.log('digest-uri=%s', digest_uri)
         response = HEX(HEX(A1), self.nonce, '%08x' % nc, cnonce, self.qop,
                        HEX(A2))
-        logging.debug(response)
+        self.log(response)
         return DigestResponse(username, self.realm, cnonce, nc, self.nonce,
                               digest_uri, response, self.charset, self.qop)
+
+    def log(self, message, level=logging.DEBUG, *args, **kwargs):
+        if self.should_log:
+            logging.log(level, message, *args, **kwargs)
 
 
 class DigestResponse(object):

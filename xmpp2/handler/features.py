@@ -6,6 +6,9 @@ class FeaturesHandler(object):
     def __init__(self, client):
         self.client = client
 
+    def start(self):
+        self.client.process()
+
     def handle(self, xml_obj):
         if self.client.features is None:
             self.client.features = Features(xml_obj)
