@@ -2,12 +2,9 @@ import logging
 from lxml import etree
 from stream import XMLStream
 import transport
-import auth
 from constants import NAMESPACES, NS_TLS
-from handler.features import FeaturesHandler
-from handler.tls import TLSHandler
-from handler.bind import BindHandler
-from handler.auth import SASLHandler, NON_SASLHandler
+from handler import (FeaturesHandler, TLSHandler, BindHandler, SASLHandler,
+                     NON_SASLHandler)
 
 
 class Client(object):
