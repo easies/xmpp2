@@ -6,10 +6,11 @@ from xmpp2 import Client
 
 logging.basicConfig(level=logging.DEBUG)
 
+logging.getLogger('xmpp2.xml.handler').setLevel(logging.INFO)
+
 c = Client('dds-master.ccs.neu.edu')
 c.connect()
 c.auth('lee-server', password='lee-server')
-
-#for n in c.stream.generator():
-#    pass
-    # print (n, n.tag, n.attrib, [x for x in n.iter()])
+c.write('<presence><priority>1</priority></presence>')
+for n in c.gen:
+    print n

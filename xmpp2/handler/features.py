@@ -9,19 +9,19 @@ class FeaturesHandler(object):
     def start(self):
         self.client.process()
 
-    def handle(self, xml_obj):
+    def handle(self, node):
         if self.client.features is None:
-            self.client.features = Features(xml_obj)
+            self.client.features = Features(node)
         else:
-            self.client.features.append(Features(xml_obj))
+            self.client.features.append(Features(node))
         return PlugOut()
 
 
 class Features(object):
 
-    def __init__(self, xml_obj):
-        self.attrib = xml_obj.attrib
-        self.elements = xml_obj[:]
+    def __init__(self, node):
+        self.attrib = node.attributes
+        self.elements = node[:]
         self.others = []
 
     def append(self, feature):

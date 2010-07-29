@@ -2,8 +2,8 @@ import base64
 import logging
 from uuid import uuid4
 from hashlib import sha1, md5
-from lxml import etree
 from common import PlugOut
+from xmpp2.model import Node
 
 NS_AUTH = 'jabber:iq:auth'
 NS_SASL = 'urn:ietf:params:xml:ns:xmpp-sasl'
@@ -23,16 +23,17 @@ class NON_SASLHandler(object):
 
     def start(self):
         # Query for methods
-        iq = etree.Element('iq', type='get', id='auth_1')
-        query = etree.SubElement(iq, 'query', xmlns=NS_AUTH)
-        username = etree.SubElement(query, 'username')
-        username.text = self.username
-        self.write(iq)
+        iq = Node('iq', type='get', id='auth_1')
+        query = Node('query', xmlns=NS_AUTH)
+        username = Node('username', self.username)
+        query.append(username)
+        iq.append(query)
+        self.write(str(iq))
         self.client.process()
 
     def handle(self, iq):
         if self.state == 0:
-            methods = iq.xpath('auth:query/*', namespaces=NAMESPACES)
+            methods = iq[:]
             prefix = '{%s}' % NS_AUTH
             self.set_attributes([m.tag.replace(prefix, '') for m in methods])
             self.state = 1
@@ -40,28 +41,26 @@ class NON_SASLHandler(object):
         elif self.state == 1:
             iq = self.next()
             # TODO error case
-            self.to = iq.xpath('@to')[0]
+            logging.debug(iq)
             return PlugOut()
 
     def set_attributes(self, attribs):
         """Auth with digest"""
-        iq = etree.Element('iq', type='set', id='auth_2')
-        query = etree.SubElement(iq, 'query', xmlns=NS_AUTH)
+        iq = Node('iq', type='set', id='auth_2')
+        query = Node('query', xmlns=NS_AUTH)
+        iq.append(query)
         if 'username' in attribs:
-            username = etree.SubElement(query, 'username')
-            username.text = self.username
+            query.append(Node('username', self.username))
         if 'resource' in attribs:
-            resource = etree.SubElement(query, 'resource')
-            resource.text = self.resource
-            if self.resource is None:
-                resource.text = uuid4().hex[:8]
+            if not self.resource:
+                self.resource = uuid4().hex[:8]
+            query.append(Node('resource', self.resource))
         if 'digest' in attribs:
-            digest = etree.SubElement(query, 'digest')
-            digest.text = self.get_digest()
-        self.write(iq)
-        iq = self.next()
+            query.append(Node('digest', self.get_digest()))
+        self.write(str(iq))
+        # Burn one
+        response = self.next()
         # TODO error case
-        self.to = iq.xpath('@to')[0]
 
     def get_digest(self):
         """The digest is sha1 hash of the stream's id + the password"""
@@ -91,8 +90,8 @@ class SASLHandler(object):
         self.is_done = False
 
     def start(self):
-        auth = etree.Element('auth', xmlns=NS_SASL, mechanism='DIGEST-MD5')
-        self.write(auth)
+        auth = Node('auth', xmlns=NS_SASL, mechanism='DIGEST-MD5')
+        self.write(str(auth))
         self.client.process()
 
     def handle(self, xml_obj):
@@ -100,9 +99,9 @@ class SASLHandler(object):
             challenge = base64.b64decode(xml_obj.text)
             digest = RFC2831(challenge).get_challenge()
             response = digest.get_response(self.username, self.password)
-            res = etree.Element('response', xmlns=NS_SASL)
-            res.text = base64.b64encode(str(response))
-            self.write(res)
+            response_b64 = base64.b64encode(str(response))
+            res = Node('response', response_b64, xmlns=NS_SASL)
+            self.write(str(res))
             self.state = 1
             self.client.process()
         elif self.state == 1:
@@ -114,7 +113,7 @@ class SASLHandler(object):
             elif xml_obj.tag.endswith('challenge'):
                 rspauth = base64.b64decode(xml_obj.text)
                 self.rspauth = rspauth.lstrip('rspauth=')
-                self.write(etree.Element('response', xmlns=NS_SASL))
+                self.write('<response xmlns="%s"/>' % NS_SASL)
                 self.state = 2
                 self.client.process()
             else: pass
@@ -134,7 +133,8 @@ class SASLHandler(object):
 
         def act(self, client, handler):
             client.initiate()
-            client.gen = client.stream.generator()
+            client._create_generator()
+#            client.gen = client.stream.generator()
 
 
 def H(*args):

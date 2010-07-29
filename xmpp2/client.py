@@ -1,5 +1,4 @@
 import logging
-from lxml import etree
 from stream import XMLStream
 import transport
 from constants import NAMESPACES, NS_TLS
@@ -14,23 +13,32 @@ class Client(object):
         self.host = host
         self.port = port
         self.ssl = ssl
-        self.stream = None
+        self.__stream = None
         self.sock = None
         self.gen = None
         self.features = None
         self.me = None
-        self.handlers = []
+        self.handlers = {}
+        self.__handlers = []
         self.jid = None
 
     def add_handler(self, handler):
-        self.handlers.append(handler)
+        handler_type = None
+        handler_ns = None
+        if hasattr(handler, 'get_type'):
+            handler_type = handler.get_type()
+        if hasattr(handler, 'get_ns'):
+            handler_ns = handler.get_ns()
+        self.handlers[handler] = (handler_type, handler_ns)
+        self.__handlers.append(handler)
         if hasattr(handler, 'start'):
             handler.start()
 
     def remove_handler(self, handler):
         try:
-            self.handlers.remove(handler)
-        except ValueError:
+            self.handlers.pop(handler)
+            self.__handlers.remove(handler)
+        except:
             pass
 
     def _set_jid(self, jid):
@@ -38,7 +46,11 @@ class Client(object):
             self.jid = JID.from_string(jid)
 
     def initiate(self):
-        self.stream.initiate(self.host)
+        self.__stream.initiate(self.host)
+
+    # BEWARE, creating a generator will fuck up. DO NOT USE.
+    def _create_generator(self):
+        self.gen = self.__stream.generator()
 
     def connect(self):
         if self.ssl:
@@ -49,9 +61,9 @@ class Client(object):
     def _connect_plain(self):
         self.sock = transport.TCP(self.host, self.port)
         self.sock.connect()
-        self.stream = XMLStream(self.sock)
+        self.__stream = XMLStream(self.sock)
         self.initiate()
-        self.gen = self.stream.generator()
+        self.gen = self.__stream.generator()
         # process features
         self.add_handler(FeaturesHandler(self))
         if self.features.has_feature('starttls'):
@@ -66,9 +78,9 @@ class Client(object):
         """Upgrade the connection to TLS"""
         sock = transport.TCP_SSL(self.sock.sock)
         # Re-initiate the stream.
-        self.stream = XMLStream(sock)
+        self.__stream = XMLStream(sock)
         self.initiate()
-        self.gen = self.stream.generator()
+        self.gen = self.__stream.generator()
         self.sock = sock
         self.add_handler(FeaturesHandler(self))
 
@@ -76,7 +88,7 @@ class Client(object):
         mechanisms = self.features.get_feature('mechanisms')
         if mechanisms is not None:
             mechanisms = [m.text for m in mechanisms]
-            logging.info('mechanisms: %s', mechanisms)
+            logging.debug('mechanisms: %s', mechanisms)
             sasl = SASLHandler(self, mechanisms, username, password)
             self.add_handler(sasl)
             self.add_handler(FeaturesHandler(self))
@@ -86,14 +98,22 @@ class Client(object):
             self.add_handler(nsasl)
 
     def get_id(self):
-        return self.stream['id']
+        return self.__stream['id']
 
     def write(self, s):
-        return self.stream.write(s)
+        return self.__stream.write(s)
 
     def process(self):
         element = self.gen.next()
-        for handler in self.handlers:
+        tag = element.tag
+        for handler in self.__handlers:
+            handler_type, xmlns = self.handlers[handler]
+            if handler_type is not None:
+                if xmlns is not None:
+                    if not tag == ('{%s}%s' % (xmlns, handler_type)):
+                        continue
+                elif not tag.endswith(handler_type):
+                    continue
             ret = handler.handle(element)
             if ret is None:
                 continue
@@ -101,7 +121,7 @@ class Client(object):
                 ret.act(self, handler)
 
     def disconnect(self):
-        self.stream.close()
+        self.__stream.close()
 
 
 class JID(object):

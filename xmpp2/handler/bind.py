@@ -1,6 +1,7 @@
 from uuid import uuid4
-from lxml import etree
 from common import PlugOut
+from xmpp2.model import Node
+import logging
 
 
 class BindHandler(object):
@@ -11,17 +12,22 @@ class BindHandler(object):
         self.client = client
         self.resource = resource
 
+    def get_type(self):
+        return 'iq'
+
+    def get_ns(self):
+        return 'jabber:client'
+
     def get_id(self):
         return uuid4().hex
 
     def start(self):
-        iq = etree.Element('iq', type='set', id=self.get_id())
-        bind = etree.SubElement(iq, 'bind', xmlns=self.NS_BIND)
+        node = Node('iq', type='set', id=self.get_id())
+        bind = Node('bind', xmlns=self.NS_BIND)
+        node.append(bind)
         if self.resource is not None:
-            # resource = etree.SubElement(bind, 'resource')
-            # resource.text = str(resource)
-            etree.SubElement(bind, 'resource').text = str(resource)
-        self.client.write(iq)
+            bind.append(Node('resource', self.resource))
+        self.client.write(str(node))
         self.client.process()
 
     def handle(self, iq):

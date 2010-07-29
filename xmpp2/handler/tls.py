@@ -1,5 +1,4 @@
 import logging
-from lxml import etree
 from common import PlugOut
 
 
@@ -24,8 +23,7 @@ class TLSHandler(object):
             # Upgrade to TLS
             self.client.upgrade_to_tls()
         else:
-            logging.warn('Not proceeding with TLS')
-            logging.warn(etree.tostring(element))
+            logging.warn('Not proceeding with TLS. Got: %s', element)
         return PlugOut()
 
     def write(self, x):
