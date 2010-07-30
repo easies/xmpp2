@@ -29,4 +29,26 @@ class Node(list):
         else:
             return s + '>' + self.text + ('</%s>' % self.tag)
 
+    def pretty_print(self, level=0):
+        """
+        >>> x = Node('a', Node('b'), Node('c'))
+        >>> x.pretty_print()
+        '<a>\\n    <b/>\\n    <c/>\\n</a>'
+        """
+        if not len(self):
+            text = self.text
+            if not text:
+                return '<%s/>' % self.tag
+            return '<%s %s/>' % (self.tag, self.text)
+        else:
+            s = '<%s>\n' % self.tag
+            prefix = '    ' * (level + 1)
+            for x in self:
+                if hasattr(x, 'pretty_print'):
+                    s += '%s%s\n' % (prefix, x.pretty_print(level + 1))
+                else:
+                    s += '%s%s\n' % (prefix, x)
+            s += '</%s>' % self.tag
+            return s
+
     __repr__ = __str__

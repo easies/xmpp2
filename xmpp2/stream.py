@@ -33,7 +33,10 @@ class XMLStream(object):
 
     def write(self, s):
         x = unicode(s)
-        self.log(x)
+        if hasattr(s, 'pretty_print'):
+            self.log('\n' + s.pretty_print())
+        else:
+            self.log(x)
         return self.__sock.write(x)
 
     def initiate(self, host, xmlns_stream=NS_STREAM, xmlns=NS_CLIENT):
@@ -64,7 +67,8 @@ class XMLStream(object):
             context.parseChunk(chunk, len(chunk), 0)
             # Empty out the queue, so that we can act on it.
             for node in handler.empty_queue():
-                logging.debug('yielding: %s %s', node.tag, node.get_attributes())
+                logging.debug('yielding: %s %s', node.tag,
+                              node.get_attributes())
                 yield node
 
     def log(self, message, *args):

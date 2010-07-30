@@ -27,7 +27,7 @@ class BindHandler(object):
         node.append(bind)
         if self.resource is not None:
             bind.append(Node('resource', self.resource))
-        self.client.write(str(node))
+        self.client.write(node)
         self.client.process()
 
     def handle(self, iq):

@@ -28,7 +28,7 @@ class NON_SASLHandler(object):
         username = Node('username', self.username)
         query.append(username)
         iq.append(query)
-        self.write(str(iq))
+        self.write(iq)
         self.client.process()
 
     def handle(self, iq):
@@ -57,7 +57,7 @@ class NON_SASLHandler(object):
             query.append(Node('resource', self.resource))
         if 'digest' in attribs:
             query.append(Node('digest', self.get_digest()))
-        self.write(str(iq))
+        self.write(iq)
         # Burn one
         response = self.next()
         # TODO error case
@@ -91,7 +91,7 @@ class SASLHandler(object):
 
     def start(self):
         auth = Node('auth', xmlns=NS_SASL, mechanism='DIGEST-MD5')
-        self.write(str(auth))
+        self.write(auth)
         self.client.process()
 
     def handle(self, xml_obj):
@@ -101,7 +101,7 @@ class SASLHandler(object):
             response = digest.get_response(self.username, self.password)
             response_b64 = base64.b64encode(str(response))
             res = Node('response', response_b64, xmlns=NS_SASL)
-            self.write(str(res))
+            self.write(res)
             self.state = 1
             self.client.process()
         elif self.state == 1:
@@ -134,7 +134,6 @@ class SASLHandler(object):
         def act(self, client, handler):
             client.initiate()
             client._create_generator()
-#            client.gen = client.stream.generator()
 
 
 def H(*args):
