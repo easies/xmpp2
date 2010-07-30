@@ -10,6 +10,6 @@ setup(
     long_description='An XMPP client',
     author='Alex Lee',
     author_email='xmpp2@thirdbeat.com',
-    url='',
+    url='http://xmpp2.thirdbeat.com',
     packages=['xmpp2', 'xmpp2.handler']
 )
