@@ -23,7 +23,7 @@ class Client(object):
         self.jid = None
 
     def add_handler(self, handler):
-        handler_type = None
+        handler_type = ''
         handler_ns = None
         if hasattr(handler, 'get_type'):
             handler_type = handler.get_type()
@@ -103,18 +103,24 @@ class Client(object):
     def write(self, s):
         return self.__stream.write(s)
 
+    # Process a "message".
     def process(self):
+        # An XML element
         element = self.gen.next()
         tag = element.tag
+        # Loop through the handlers
         for handler in self.__handlers:
+            # The handler_type is the tag.
             handler_type, xmlns = self.handlers[handler]
-            if handler_type is not None:
-                if xmlns is not None:
-                    if not tag == ('{%s}%s' % (xmlns, handler_type)):
-                        continue
-                elif not tag.endswith(handler_type):
+            if xmlns is not None:
+                if not tag == ('{%s}%s' % (xmlns, handler_type)):
                     continue
+            elif not tag.endswith(handler_type):
+                continue
+            # Handle the element.
             ret = handler.handle(element)
+            # The returned object is a post-process handler.
+            # It is passed in the client and the handler itself.
             if ret is None:
                 continue
             elif hasattr(ret, 'act'):
