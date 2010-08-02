@@ -5,17 +5,6 @@ from constants import NS_STREAM, NS_CLIENT
 from model import Node
 
 
-class XMLStreamError(Exception):
-    pass
-
-
-def log(message, *args):
-    import os
-    if os.environ.has_key('TERM'):
-        message = '\x1b[36;1m%s\x1b[0m' % message
-    logging.debug(message, *args)
-
-
 class XMLStream(object):
 
     def __init__(self, sock, ns=NS_STREAM, tag='stream', should_log=True):
@@ -23,10 +12,9 @@ class XMLStream(object):
         self.attrib = {}
         self.root = None
         self.should_log = should_log
+        self.tag = tag
         if ns:
             self.tag = '{%s}%s' % (ns, tag)
-        else:
-            self.tag = tag
 
     def read(self, *args, **kwargs):
         return self.__sock.read()
@@ -39,6 +27,9 @@ class XMLStream(object):
             self.log(x)
         return self.__sock.write(x)
 
+    def fileno(self):
+        return self.__sock.fileno()
+
     def initiate(self, host, xmlns_stream=NS_STREAM, xmlns=NS_CLIENT):
         self.write('''<?xml version="1.0" encoding="UTF-8"?>
             <stream:stream xmlns:stream="%s" to="%s" version="1.0"
@@ -50,7 +41,6 @@ class XMLStream(object):
     def get_id(self):
         if self.attrib.has_key('id'):
             return self.attrib['id']
-        return None
 
     def generator(self):
         # Create the handler.
@@ -67,18 +57,22 @@ class XMLStream(object):
             context.parseChunk(chunk, len(chunk), 0)
             # Empty out the queue, so that we can act on it.
             for node in handler.empty_queue():
-                logging.debug('yielding: %s %s', node.tag,
-                              node.get_attributes())
                 yield node
 
     def log(self, message, *args):
+        def do_log(message, *args):
+            import os
+            if os.environ.has_key('TERM'):
+                message = '\x1b[36;1m%s\x1b[0m' % message
+            logging.debug(message, *args)
         if self.should_log:
-            log(message, *args)
+            do_log(message, *args)
 
     def close(self):
         self.__sock.close()
 
 
+# The object for handling libxml2's event callbacks.
 class Handler(object):
 
     def __init__(self, logger_name='xmpp2.xml.handler'):

@@ -58,6 +58,9 @@ class Client(object):
         else:
             self._connect_plain()
 
+    def fileno(self):
+        return self.__stream.fileno()
+
     def _connect_plain(self):
         self.sock = transport.TCP(self.host, self.port)
         self.sock.connect()

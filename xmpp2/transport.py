@@ -21,6 +21,9 @@ class TCP(object):
     def write(self, s):
         return self.sock.sendall(s)
 
+    def fileno(self):
+        return self.sock.fileno()
+
 
 class TCP_SSL(object):
     """A TCP socket over SSL."""
@@ -36,3 +39,6 @@ class TCP_SSL(object):
 
     def write(self, s):
         return self.sock.write(s)
+
+    def fileno(self):
+        return self.sock.fileno()
