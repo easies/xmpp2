@@ -15,9 +15,6 @@ class BindHandler(object):
     def get_type(self):
         return 'iq'
 
-    def get_ns(self):
-        return 'jabber:client'
-
     def get_id(self):
         return uuid4().hex
 
@@ -31,7 +28,9 @@ class BindHandler(object):
         self.client.process()
 
     def handle(self, iq):
-        jid = iq.xpath('bind:bind/bind:jid', namespaces=self.NAMESPACES)
-        if len(jid) > 0:
-            self.client._set_jid(jid[0].text)
+        try:
+            jid = iq[0][0].text
+            self.client._set_jid(jid)
+        except:
+            pass
         return PlugOut()
