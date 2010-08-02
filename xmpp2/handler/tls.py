@@ -8,10 +8,10 @@ class TLSHandler(object):
         self.client = client
         self.handled = False
 
-    def start(self):
+    def start(self, xmlns='urn:ietf:params:xml:ns:xmpp-tls'):
         # Send starttls request
         logging.info('Sending starttls request')
-        self.write('<starttls xmlns="urn:ietf:params:xml:ns:xmpp-tls"/>')
+        self.write('<starttls xmlns="%s"/>' % xmlns)
         self.client.process()
 
     def handle(self, element):
@@ -23,7 +23,7 @@ class TLSHandler(object):
             # Upgrade to TLS
             self.client.upgrade_to_tls()
         else:
-            logging.warn('Not proceeding with TLS. Got: %s', element)
+            logging.error('Not proceeding with TLS. Got: %s', element)
         return PlugOut()
 
     def write(self, x):

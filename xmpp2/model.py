@@ -35,13 +35,15 @@ class Node(list):
         >>> x.pretty_print()
         '<a>\\n    <b/>\\n    <c/>\\n</a>'
         """
+        attrs = dict_to_xml(self.attributes)
         if not len(self):
-            text = self.text
-            if not text:
+            if not attrs:
                 return '<%s/>' % self.tag
-            return '<%s %s/>' % (self.tag, self.text)
+            return '<%s %s/>' % (self.tag, attrs)
         else:
             s = '<%s>\n' % self.tag
+            if attrs:
+                s = '<%s %s>\n' % (self.tag, attrs)
             prefix = '    ' * (level + 1)
             for x in self:
                 if hasattr(x, 'pretty_print'):
