@@ -104,7 +104,7 @@ class Client(object):
             self.add_handler(nsasl)
 
     def get_id(self):
-        return self.__stream['id']
+        return self.__stream.get_id()
 
     def write(self, s):
         return self.__stream.write(s)

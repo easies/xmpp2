@@ -15,5 +15,6 @@ c.auth('lee-server', password='lee-server')
 print 'Got JID: %s' % c.jid
 c.write(XML.presence.add(XML.priority.add(1)))
 print 'Handlers: %s' % c.handlers
+print 'ID: %s' % c.get_id()
 for n in c.gen:
     print n

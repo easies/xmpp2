@@ -9,8 +9,7 @@ class XMLStream(object):
 
     def __init__(self, sock, ns=NS_STREAM, tag='stream', log_level=LOG_NONE):
         self.__sock = sock
-        self.attrib = {}
-        self.root = None
+        self.__handler = None
         self.__log_level = log_level
         self.tag = tag
         if ns:
@@ -57,17 +56,19 @@ class XMLStream(object):
             xmlns="%s">''' % (xmlns_stream, host, xmlns))
 
     def __getitem__(self, key):
-        return self.attrib[key]
+        return self.__handler.get_root().attributes[key]
 
     def get_id(self):
-        if self.attrib.has_key('id'):
-            return self.attrib['id']
+        try:
+            return self['id']
+        except:
+            pass
 
     def generator(self):
         # Create the handler.
-        handler = Handler()
+        self.__handler = Handler()
         # Create the parser context (this is a C library).
-        context = libxml2.createPushParser(handler, '', 0, None)
+        context = libxml2.createPushParser(self.__handler, '', 0, None)
         while True:
             # Read from the socket.
             chunk = self.read()
@@ -76,7 +77,7 @@ class XMLStream(object):
             # message into its queue.
             context.parseChunk(chunk, len(chunk), 0)
             # Empty out the queue, so that we can act on it.
-            for node in handler.empty_queue():
+            for node in self.__handler.empty_queue():
                 if self.__log_level == LOG_STREAM:
                     self.__do_log('stream read:\n%s', node)
                 yield node
@@ -101,6 +102,9 @@ class Handler(object):
         ret = self.queue
         self.queue = []
         return ret
+
+    def get_root(self):
+        return self.stack[0]
 
     def startElement(self, tag, attrs):
         self.logger.debug('startElement: tag: %s depth: %d %s', tag,
