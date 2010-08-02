@@ -132,8 +132,11 @@ class SASLHandler(object):
     class PlugOut(object):
 
         def act(self, client, handler):
+            # Re-initiate for success.
             client.initiate()
+            # Since this is a new stream, I need a new generator.
             client._create_generator()
+            client.remove_handler(handler)
 
 
 def H(*args):
