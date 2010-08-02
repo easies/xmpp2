@@ -1,6 +1,6 @@
 from uuid import uuid4
 from common import PlugOut
-from xmpp2.model import Node
+from xmpp2.model import XML
 import logging
 
 
@@ -19,12 +19,11 @@ class BindHandler(object):
         return uuid4().hex
 
     def start(self):
-        node = Node('iq', type='set', id=self.get_id())
-        bind = Node('bind', xmlns=self.NS_BIND)
-        node.append(bind)
+        iq = (XML.iq(type='set', id=self.get_id())
+                .add(XML.bind(xmlns=self.NS_BIND)))
         if self.resource is not None:
-            bind.append(Node('resource', self.resource))
-        self.client.write(node)
+            iq[0].add(XML.resource.add(self.resource))
+        self.client.write(iq)
         self.client.process()
 
     def handle(self, iq):

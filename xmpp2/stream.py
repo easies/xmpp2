@@ -1,8 +1,9 @@
+import os
 import copy
 import logging
 import libxml2
 from constants import NS_STREAM, NS_CLIENT
-from model import Node
+from model import XMLObject
 
 
 class XMLStream(object):
@@ -17,14 +18,13 @@ class XMLStream(object):
             self.tag = '{%s}%s' % (ns, tag)
 
     def read(self, *args, **kwargs):
-        return self.__sock.read()
+        chunk = self.__sock.read()
+        self.log('read: %s', chunk)
+        return chunk
 
     def write(self, s):
         x = unicode(s)
-        if hasattr(s, 'pretty_print'):
-            self.log('\n' + s.pretty_print())
-        else:
-            self.log(x)
+        self.log('\n%s', s)
         return self.__sock.write(x)
 
     def fileno(self):
@@ -50,7 +50,6 @@ class XMLStream(object):
         while True:
             # Read from the socket.
             chunk = self.read()
-            logging.debug('read: %s', chunk)
             # Parse the chunk that was read. This will trigger the handler,
             # which will put finished top-level nodes like presence and
             # message into its queue.
@@ -58,13 +57,20 @@ class XMLStream(object):
             # Empty out the queue, so that we can act on it.
             for node in handler.empty_queue():
                 yield node
+                self.log('\n%s', node)
 
     def log(self, message, *args):
-        def do_log(message, *args):
-            import os
-            if os.environ.has_key('TERM'):
-                message = '\x1b[36;1m%s\x1b[0m' % message
-            logging.debug(message, *args)
+        if os.environ.has_key('TERM'):
+            def do_log(message, *args):
+                a = []
+                for x in args:
+                    if hasattr(x, 'pretty_print'):
+                        x = '\x1b[36;1m%s\x1b[0m' % x.pretty_print()
+                    a.append(x)
+                logging.debug(message, *a)
+        else:
+            def do_log(message, *args):
+                logging.debug(message, *args)
         if self.should_log:
             do_log(message, *args)
 
@@ -94,8 +100,7 @@ class Handler(object):
                           len(self.stack), attrs)
         if not attrs:
             attrs = {}
-        node = Node(tag, **attrs)
-        self.stack.append(node)
+        self.stack.append(XMLObject(tag)(**attrs))
 
     def has_stream(self):
         return self.stack and self.stack[0].tag == 'stream:stream'

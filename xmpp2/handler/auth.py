@@ -3,7 +3,7 @@ import logging
 from uuid import uuid4
 from hashlib import sha1, md5
 from common import PlugOut
-from xmpp2.model import Node
+from xmpp2.model import XML
 
 NS_AUTH = 'jabber:iq:auth'
 NS_SASL = 'urn:ietf:params:xml:ns:xmpp-sasl'
@@ -23,12 +23,9 @@ class NON_SASLHandler(object):
 
     def start(self):
         # Query for methods
-        iq = Node('iq', type='get', id='auth_1')
-        query = Node('query', xmlns=NS_AUTH)
-        username = Node('username', self.username)
-        query.append(username)
-        iq.append(query)
-        self.write(iq)
+        self.write(XML.iq(type='get', id='auth_1').add(
+            XML.query(xmlns=NS_AUTH).add(
+                XML.username.add(self.username))))
         self.client.process()
 
     def handle(self, iq):
@@ -46,17 +43,17 @@ class NON_SASLHandler(object):
 
     def set_attributes(self, attribs):
         """Auth with digest"""
-        iq = Node('iq', type='set', id='auth_2')
-        query = Node('query', xmlns=NS_AUTH)
-        iq.append(query)
+        iq = XML.iq(type='set', id='auth_2')
+        query = XML.query(xmlns=NS_AUTH)
+        iq.add(query)
         if 'username' in attribs:
-            query.append(Node('username', self.username))
+            query.add(XML.username.add(self.username))
         if 'resource' in attribs:
             if not self.resource:
                 self.resource = uuid4().hex[:8]
-            query.append(Node('resource', self.resource))
+            query.add(XML.resource.add(self.resource))
         if 'digest' in attribs:
-            query.append(Node('digest', self.get_digest()))
+            query.add(XML.digest.add(self.get_digest()))
         self.write(iq)
         # Burn one
         response = self.next()
@@ -90,8 +87,7 @@ class SASLHandler(object):
         self.is_done = False
 
     def start(self):
-        auth = Node('auth', xmlns=NS_SASL, mechanism='DIGEST-MD5')
-        self.write(auth)
+        self.write(XML.auth(xmlns=NS_SASL, mechanism='DIGEST-MD5'))
         self.client.process()
 
     def handle(self, xml_obj):
@@ -100,8 +96,7 @@ class SASLHandler(object):
             digest = RFC2831(challenge).get_challenge()
             response = digest.get_response(self.username, self.password)
             response_b64 = base64.b64encode(str(response))
-            res = Node('response', response_b64, xmlns=NS_SASL)
-            self.write(res)
+            self.write(XML.response(xmlns=NS_SASL).add(response_b64))
             self.state = 1
             self.client.process()
         elif self.state == 1:
