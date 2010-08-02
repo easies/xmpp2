@@ -91,7 +91,7 @@ class Handler(object):
 
     def startElement(self, tag, attrs):
         self.logger.debug('startElement: tag: %s depth: %d %s', tag,
-                      len(self.stack), attrs)
+                          len(self.stack), attrs)
         if not attrs:
             attrs = {}
         node = Node(tag, **attrs)
