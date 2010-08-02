@@ -1,7 +1,7 @@
 import logging
 from stream import XMLStream
 import transport
-from constants import NAMESPACES, NS_TLS
+from constants import NAMESPACES, NS_TLS, LOG_SOCKET, LOG_STREAM, LOG_NONE
 from handler import (FeaturesHandler, TLSHandler, BindHandler, SASLHandler,
                      NON_SASLHandler)
 
@@ -9,7 +9,7 @@ from handler import (FeaturesHandler, TLSHandler, BindHandler, SASLHandler,
 class Client(object):
     """An XMPP client"""
 
-    def __init__(self, host, port=5222, ssl=False):
+    def __init__(self, host, port=5222, ssl=False, stream_log_level=LOG_NONE):
         self.host = host
         self.port = port
         self.ssl = ssl
@@ -21,6 +21,7 @@ class Client(object):
         self.handlers = {}
         self.__handlers = []
         self.jid = None
+        self.stream_log_level = stream_log_level
 
     def add_handler(self, handler):
         handler_type = ''
@@ -61,10 +62,13 @@ class Client(object):
     def fileno(self):
         return self.__stream.fileno()
 
+    def __create_stream(self):
+        return XMLStream(self.sock, log_level=self.stream_log_level)
+
     def _connect_plain(self):
         self.sock = transport.TCP(self.host, self.port)
         self.sock.connect()
-        self.__stream = XMLStream(self.sock)
+        self.__stream = self.__create_stream()
         self.initiate()
         self.gen = self.__stream.generator()
         # process features
@@ -79,19 +83,18 @@ class Client(object):
 
     def upgrade_to_tls(self):
         """Upgrade the connection to TLS"""
-        sock = transport.TCP_SSL(self.sock.sock)
+        self.sock = transport.TCP_SSL(self.sock.sock)
         # Re-initiate the stream.
-        self.__stream = XMLStream(sock)
+        self.__stream = self.__create_stream()
         self.initiate()
         self.gen = self.__stream.generator()
-        self.sock = sock
         self.add_handler(FeaturesHandler(self))
 
     def auth(self, username, password=None, resource=None):
         mechanisms = self.features.get_feature('mechanisms')
         if mechanisms is not None:
             mechanisms = [m.text for m in mechanisms]
-            logging.debug('mechanisms: %s', mechanisms)
+            logging.info('SASL mechanisms: %s', mechanisms)
             sasl = SASLHandler(self, mechanisms, username, password)
             self.add_handler(sasl)
             self.add_handler(FeaturesHandler(self))

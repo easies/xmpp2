@@ -1,5 +1,11 @@
 
 
+# Log levels
+LOG_SOCKET = 2
+LOG_STREAM = 1
+LOG_NONE = 0
+
+
 NS_ADMIN = 'jabber:iq:admin'
 NS_AGENT = 'jabber:iq:agent'
 NS_AGENTS = 'jabber:iq:agents'

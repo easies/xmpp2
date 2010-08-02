@@ -2,9 +2,10 @@
 
 class XMLObject(list):
 
-    def __init__(self, tag):
+    def __init__(self, tag, *args, **kwargs):
         self.tag = tag
-        self.attributes = {}
+        self.attributes = dict(kwargs)
+        self.extend(args)
 
     def __call__(self, **kwargs):
         self.attributes = dict(kwargs)
@@ -34,27 +35,32 @@ class XMLObject(list):
 
     __repr__ = __str__
 
-    def pretty_print(self, level=0):
+    def pretty_print(self, level=0, tab='  '):
         attrs = self.__attr_str()
-        prefix = '    ' * level
+        prefix = tab * level
+        # Check for no children.
         if not len(self):
             if not attrs:
                 return '%s<%s/>' % (prefix, self.tag)
             return '%s<%s %s/>' % (prefix, self.tag, attrs)
+        # Has children.
+        end_tag = '</%s>' % self.tag
+        if attrs:
+            start_tag = '<%s %s>' % (self.tag, attrs)
         else:
-            s = '%s<%s>\n' % (prefix, self.tag)
-            if attrs:
-                s = '%s<%s %s>\n' % (prefix, self.tag, attrs)
-            prefix = '    ' * (level + 1)
-            for x in self:
-                if hasattr(x, 'pretty_print'):
-                    for y in x.pretty_print(level + 1).split('\n'):
-                        s += '%s\n' % y
-                else:
-                    s += '%s%s\n' % (prefix, x)
-            prefix = '    ' * level
-            s += '%s</%s>' % (prefix, self.tag)
-            return s
+            start_tag = '<%s>' % self.tag
+        lines = []
+        for x in self:
+            if hasattr(x, 'pretty_print'):
+                lines.extend(x.pretty_print(level + 1).split('\n'))
+            else:
+                lines.append(tab * (level + 1) + str(x))
+        # Single child.
+        if len(self) == 1:
+            return prefix + start_tag + lines[0].strip() + end_tag
+        # 2+ children.
+        return '%s%s\n%s\n%s%s' % (prefix, start_tag, '\n'.join(lines),
+                                   prefix, end_tag)
 
 
 class XMLWriter(object):

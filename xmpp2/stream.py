@@ -1,31 +1,52 @@
 import os
-import copy
 import logging
 import libxml2
-from constants import NS_STREAM, NS_CLIENT
+from constants import NS_STREAM, NS_CLIENT, LOG_SOCKET, LOG_STREAM, LOG_NONE
 from model import XMLObject
 
 
 class XMLStream(object):
 
-    def __init__(self, sock, ns=NS_STREAM, tag='stream', should_log=True):
+    def __init__(self, sock, ns=NS_STREAM, tag='stream', log_level=LOG_NONE):
         self.__sock = sock
         self.attrib = {}
         self.root = None
-        self.should_log = should_log
+        self.__log_level = log_level
         self.tag = tag
         if ns:
             self.tag = '{%s}%s' % (ns, tag)
+        if log_level == LOG_SOCKET:
+            def logged_read():
+                chunk = self.__sock.read()
+                logging.debug('socket read:\n%s', chunk)
+                return chunk
+            def logged_write(s):
+                chunk = unicode(s)
+                logging.debug('socket write:\n%s', chunk)
+                return self.__sock.write(chunk)
+            self.read = logged_read
+            self.write = logged_write
+        elif log_level == LOG_STREAM:
+            def logged_write_stream(s):
+                chunk = unicode(s)
+                self.__do_log('stream write:\n%s', s)
+                return self.__sock.write(chunk)
+            self.read = self.__sock.read
+            self.write = logged_write_stream
+        else:
+            self.read = self.__sock.read
+            self.write = lambda s: self.__sock.write(unicode(s))
 
-    def read(self, *args, **kwargs):
-        chunk = self.__sock.read()
-        self.log('read: %s', chunk)
-        return chunk
-
-    def write(self, s):
-        x = unicode(s)
-        self.log('\n%s', s)
-        return self.__sock.write(x)
+    def __do_log(self, message, *args):
+        if os.environ.has_key('TERM'):
+            a = []
+            for x in args:
+                if hasattr(x, 'pretty_print'):
+                    x = '\x1b[36;1m%s\x1b[0m' % x.pretty_print()
+                a.append(x)
+            logging.debug(message, *a)
+        else:
+            logging.debug(message, *args)
 
     def fileno(self):
         return self.__sock.fileno()
@@ -56,23 +77,9 @@ class XMLStream(object):
             context.parseChunk(chunk, len(chunk), 0)
             # Empty out the queue, so that we can act on it.
             for node in handler.empty_queue():
+                if self.__log_level == LOG_STREAM:
+                    self.__do_log('stream read:\n%s', node)
                 yield node
-                self.log('\n%s', node)
-
-    def log(self, message, *args):
-        if os.environ.has_key('TERM'):
-            def do_log(message, *args):
-                a = []
-                for x in args:
-                    if hasattr(x, 'pretty_print'):
-                        x = '\x1b[36;1m%s\x1b[0m' % x.pretty_print()
-                    a.append(x)
-                logging.debug(message, *a)
-        else:
-            def do_log(message, *args):
-                logging.debug(message, *args)
-        if self.should_log:
-            do_log(message, *args)
 
     def close(self):
         self.__sock.close()
