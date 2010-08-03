@@ -93,6 +93,7 @@ class SASLHandler(object):
     def handle(self, xml_obj):
         if self.state == 0:
             challenge = base64.b64decode(xml_obj.text)
+            logging.debug(challenge)
             digest = RFC2831(challenge).get_challenge()
             response = digest.get_response(self.username, self.password)
             response_b64 = base64.b64encode(str(response))
@@ -111,6 +112,8 @@ class SASLHandler(object):
                 self.write('<response xmlns="%s"/>' % NS_SASL)
                 self.state = 2
                 self.client.process()
+            elif xml_obj.tag.endswith('failure'):
+                raise Exception('Auth failure', xml_obj)
             else: pass
         elif self.state == 2:
             self.is_done = True
@@ -171,7 +174,7 @@ class RFC2831(object):
     def get_challenge(self):
         pairs = {}
         for x in self.s.split(','):
-            key, value = x.split('=', 2)
+            key, value = x.split('=', 1)
             if value.startswith('"') and value.endswith('"'):
                 value = value[1:-1]
             pairs[key] = value
