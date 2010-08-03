@@ -5,7 +5,7 @@ from distutils.core import setup
 
 setup(
     name='xmpp2',
-    version='0.1',
+    version='0.2',
     description='An XMPP client',
     long_description='An XMPP client',
     author='Alex Lee',
