@@ -19,4 +19,4 @@ c.auth(USERNAME, password=PASSWORD)
 c.write(XML.presence.add(XML.priority.add(1)))
 
 for n in c.gen:
-    sys.stdout.write(str(n))
+    sys.stdout.write(str(n) + '\n')
