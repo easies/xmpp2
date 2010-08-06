@@ -161,6 +161,9 @@ class JID(object):
         domain, resource = other.split('/', 2)
         return JID(node, domain, resource)
 
+    def get_stripped(self):
+        return '%s@%s' % (self.node, self.domain)
+
     def __str__(self):
         """
         >>> jid = JID('hello', 'example.com', 'xyz')
