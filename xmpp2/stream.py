@@ -12,6 +12,7 @@ class XMLStream(object):
         self.__handler = None
         self.__log_level = log_level
         self.tag = tag
+        self.block = True
         if ns:
             self.tag = '{%s}%s' % (ns, tag)
         if log_level == LOG_SOCKET:
@@ -35,6 +36,9 @@ class XMLStream(object):
         else:
             self.read = self.__sock.read
             self.write = lambda s: self.__sock.write(unicode(s))
+
+    def setblocking(self, block):
+        self.block = block
 
     def __do_log(self, message, *args):
         if os.environ.has_key('TERM'):
@@ -71,7 +75,15 @@ class XMLStream(object):
         context = libxml2.createPushParser(self.__handler, '', 0, None)
         while True:
             # Read from the socket.
-            chunk = self.read()
+            try:
+                chunk = self.read(block=self.block)
+            except KeyboardInterrupt:
+                # A SIGINT stops the show.
+                raise StopIteration
+            except:
+                # Non-blocking read/recv threw an error
+                yield None
+                continue
             # Parse the chunk that was read. This will trigger the handler,
             # which will put finished top-level nodes like presence and
             # message into its queue.

@@ -62,6 +62,9 @@ class Client(object):
     def fileno(self):
         return self.__stream.fileno()
 
+    def setblocking(self, block):
+        self.__stream.setblocking(block)
+
     def __create_stream(self):
         return XMLStream(self.sock, log_level=self.stream_log_level)
 
