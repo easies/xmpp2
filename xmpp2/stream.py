@@ -6,6 +6,13 @@ from model import XMLObject
 
 
 class XMLStream(object):
+    """
+    An XML stream is a proper XML document. In the context of core XMPP
+    standards, it contains <message/>, <presence/>, or <iq/>, as stanzas.
+    `RFC3920`_
+
+    .. _RFC3920: http://www.ietf.org/rfc/rfc3920.txt
+    """
 
     def __init__(self, sock, ns=NS_STREAM, tag='stream', log_level=LOG_NONE):
         self.__sock = sock
@@ -38,6 +45,11 @@ class XMLStream(object):
             self.write = lambda s: self.__sock.write(unicode(s))
 
     def setblocking(self, block):
+        """
+        Set the socket blocking flag.
+
+        :param block: Either True or False.
+        """
         self.block = block
 
     def __do_log(self, message, *args):
@@ -52,9 +64,11 @@ class XMLStream(object):
             logging.debug(message, *args)
 
     def fileno(self):
+        """Returns the file descriptor of the socket."""
         return self.__sock.fileno()
 
     def initiate(self, host, xmlns_stream=NS_STREAM, xmlns=NS_CLIENT):
+        """Initiates the XML stream. Writes the start tag over the socket."""
         self.write('''<?xml version="1.0" encoding="UTF-8"?>
             <stream:stream xmlns:stream="%s" to="%s" version="1.0"
             xmlns="%s">''' % (xmlns_stream, host, xmlns))
@@ -63,12 +77,17 @@ class XMLStream(object):
         return self.__handler.get_root().attributes[key]
 
     def get_id(self):
+        """Returns the ID of the document. The ID is set by the server."""
         try:
             return self['id']
         except:
             pass
 
     def generator(self):
+        """
+        Creates the generator that yields :class:`~xmpp2.model.XMLObject`\ s from the
+        stream.
+        """
         # Create the handler.
         self.__handler = Handler()
         # Create the parser context (this is a C library).
@@ -95,6 +114,7 @@ class XMLStream(object):
                 yield node
 
     def close(self):
+        """Closes the underlying socket."""
         self.__sock.close()
 
 

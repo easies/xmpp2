@@ -3,15 +3,33 @@
 class XMLObject(list):
 
     def __init__(self, tag, *args, **kwargs):
+        """
+        Creates an XML element with the given tag, child elements, and
+        attributes.
+
+        :param tag: The tag of this XML element.
+        :param args: The child elements.
+        :param kwargs: The attributes.
+        """
         self.tag = tag
         self.attributes = dict(kwargs)
         self.extend(args)
 
     def __call__(self, **kwargs):
+        """
+        Helper for constructing nodes.
+
+        :param kwargs: The attribute dict.
+        """
         self.attributes = dict(kwargs)
         return self
 
     def add(self, *elements):
+        """
+        Adds the given *elements* to this XML node.
+
+        :param elements: The child XML elements.
+        """
         self.extend(elements)
         return self
 
@@ -36,6 +54,12 @@ class XMLObject(list):
     __repr__ = __str__
 
     def pretty_print(self, level=0, tab='  '):
+        """
+        Pretty prints the XML.
+
+        :param level: The level of indentation.
+        :param tab: A "tab" string (default: 2 spaces).
+        """
         attrs = self.__attr_str()
         prefix = tab * level
         # Check for no children.
