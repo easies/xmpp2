@@ -9,7 +9,8 @@ from handler import (FeaturesHandler, TLSHandler, BindHandler, SASLHandler,
 class Client(object):
     """An XMPP client"""
 
-    def __init__(self, host, port=5222, ssl=False, stream_log_level=LOG_NONE):
+    def __init__(self, host, port=5222, ssl=False, stream_log_level=LOG_NONE,
+                 domain=None):
         """
         :param host: The hostname in which to connect.
         :param port: The port number (default 5222).
@@ -18,10 +19,14 @@ class Client(object):
         :param stream_log_level: Set the log level of the stream layer. See
                                  LOG_SOCKET, LOG_STREAM, and LOG_NONE from
                                  `xmpp2.constants`.
+        :param domain: Override the domain name sent with the stream tag.
 
         """
         self.host = host
         self.port = port
+        self.domain = host
+        if domain:
+            self.domain = domain
         self.ssl = ssl
         self.__stream = None
         self.sock = None
@@ -63,7 +68,7 @@ class Client(object):
             self.jid = JID.from_string(jid)
 
     def initiate(self):
-        self.__stream.initiate(self.host)
+        self.__stream.initiate(self.domain)
 
     # BEWARE, creating a generator will fuck up. DO NOT USE.
     def _create_generator(self):
