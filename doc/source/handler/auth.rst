@@ -10,15 +10,3 @@ xmpp2.handler.auth
 .. autoclass:: SASLHandler
     :members:
     :undoc-members:
-
-.. autoclass:: RFC2831
-    :members:
-    :undoc-members:
-
-.. autoclass:: DigestChallenge
-    :members:
-    :undoc-members:
-
-.. autoclass:: DigestResponse
-    :members:
-    :undoc-members:
