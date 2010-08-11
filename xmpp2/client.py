@@ -136,6 +136,13 @@ class Client(object):
         if mechanisms is not None:
             mechanisms = [m.text for m in mechanisms]
             logging.info('SASL mechanisms: %s', mechanisms)
+            if ('X-GOOGLE-TOKEN' in mechanisms and
+                'DIGEST-MD5' not in mechanisms):
+                # Uh-oh, stupid Google does not have DIGEST-MD5 implemented.
+                logging.warn('Stupid Google does not have DIGEST-MD5')
+                nsasl = NON_SASLHandler(self, username, password, resource)
+                self.add_handler(nsasl)
+                return
             sasl = SASLHandler(self, mechanisms, username, password)
             self.add_handler(sasl)
             self.add_handler(FeaturesHandler(self))

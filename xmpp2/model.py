@@ -80,7 +80,7 @@ class XMLObject(list):
             else:
                 lines.append(tab * (level + 1) + str(x))
         # Single child.
-        if len(self) == 1:
+        if len(lines) == 1:
             return prefix + start_tag + lines[0].strip() + end_tag
         # 2+ children.
         return '%s%s\n%s\n%s%s' % (prefix, start_tag, '\n'.join(lines),

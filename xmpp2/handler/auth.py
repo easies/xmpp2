@@ -31,13 +31,14 @@ class NON_SASLHandler(object):
 
     def handle(self, iq):
         if self.state == 0:
-            methods = iq[:]
+            methods = iq[0][:]
             prefix = '{%s}' % NS_AUTH
-            self.set_attributes([m.tag.replace(prefix, '') for m in methods])
+            methods = [m.tag.replace(prefix, '') for m in methods]
+            logging.info('Requested authentication fields: %s' % methods)
+            self.set_attributes(methods)
             self.state = 1
             self.client.process()
         elif self.state == 1:
-            iq = self.next()
             # TODO error case
             logging.debug(iq)
             return PlugOut()
@@ -55,9 +56,9 @@ class NON_SASLHandler(object):
             query.add(XML.resource.add(self.resource))
         if 'digest' in attribs:
             query.add(XML.digest.add(self.get_digest()))
+        elif 'password' in attribs:
+            query.add(XML.password.add(self.password))
         self.write(iq)
-        # Burn one
-        response = self.next()
         # TODO error case
 
     def get_digest(self):
